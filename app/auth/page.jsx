@@ -1,53 +1,95 @@
-import React, { useState } from 'react';
+"use client"
 
-export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import LoginLayout from "../../components/layouts/authlayout"
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // For now, just log the values
-    console.log('Email:', email);
-    console.log('Password:', password);
-    // Here you can add your login logic, e.g., API call
-  };
+export default function LoginPage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/accounts/login/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username: email, password }), // 👈 Django uses username
+      })
+
+      if (!response.ok) {
+        throw new Error("Invalid email or password")
+      }
+
+      const data = await response.json()
+
+      // Save token so we can use it later
+      localStorage.setItem("token", data.token)
+
+      // Redirect to dashboard
+      router.push("/dashboard")
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <div style={{ maxWidth: 400, margin: 'auto', padding: 20 }}>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="email" style={{ display: 'block', marginBottom: 4 }}>
-            Email:
-          </label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
-          />
-        </div>
+    <LoginLayout>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-green-400 to-blue-500">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+          <h1 className="text-3xl font-bold mb-6 text-center text-green-600">
+            Welcome to FundCast!
+          </h1>
 
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="password" style={{ display: 'block', marginBottom: 4 }}>
-            Password:
-          </label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
-          />
-        </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium mb-2">Username</label>
+              <input
+                type="text"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoFocus
+                className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
+                placeholder="Enter your username"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
+                placeholder="Enter your password"
+              />
+            </div>
 
-        <button type="submit" style={{ padding: '8px 16px' }}>
-          Login
-        </button>
-      </form>
-    </div>
-  );
+            {error && (
+              <p className="text-red-500 text-sm text-center">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-green-500 text-white py-3 rounded-lg text-lg font-medium hover:bg-green-600 transition disabled:opacity-50"
+            >
+              {loading ? "Logging in..." : "Login"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </LoginLayout>
+  )
 }

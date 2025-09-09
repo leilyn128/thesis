@@ -1,0 +1,25 @@
+{
+  "pages": {
+    "/(protected)/reports/page": [
+      "static/chunks/e47b7_next_dist_c5399115._.js",
+      "static/chunks/thesis_app_favicon_ico_mjs_63db07c6._.js",
+      "static/chunks/thesis_app_globals_7dddaf72.css",
+      "static/chunks/thesis_db70131b._.js",
+      "static/chunks/thesis_app_layout_63da0c21.js",
+      "static/chunks/e47b7_next_dist_client_components_builtin_global-error_a7b1882f.js",
+      "static/chunks/thesis_app_(protected)_layout_jsx_37aa09f4._.js",
+      "static/chunks/thesis_app_(protected)_layout_jsx_a7b1882f._.js",
+      "static/chunks/thesis_app_(protected)_reports_page_jsx_a2c06cec._.js",
+      "static/chunks/thesis_app_(protected)_reports_page_jsx_a5e1840a._.js",
+      "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_90c78971._.js",
+      "static/chunks/e47b7_next_dist_compiled_react-dom_e7a81b98._.js",
+      "static/chunks/e47b7_next_dist_compiled_next-devtools_index_fccc25f7.js",
+      "static/chunks/e47b7_next_dist_compiled_89b21cb3._.js",
+      "static/chunks/e47b7_next_dist_client_42c9b738._.js",
+      "static/chunks/e47b7_next_dist_fc8beade._.js",
+      "static/chunks/e47b7_@swc_helpers_cjs_f3a49ea7._.js",
+      "static/chunks/thesis_a0ff3932._.js",
+      "static/chunks/turbopack-thesis_b42ce4ef._.js"
+    ]
+  }
+}
