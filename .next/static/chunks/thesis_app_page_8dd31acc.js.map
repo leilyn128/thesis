@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/ALDEGS09/thesis/app/page.js"],"sourcesContent":["\"use client\";\r\nimport { useEffect } from \"react\";\r\nimport { useRouter } from \"next/navigation\";\r\n\r\nexport default function Home() {\r\n  const router = useRouter();\r\n\r\n  useEffect(() => {\r\n    router.replace(\"/auth\"); // Redirects to /auth\r\n  }, [router]);\r\n\r\n  return (\r\n    <div className=\"font-sans grid min-h-screen items-center justify-items-center p-8 pb-20 gap-16 sm:p-20\">\r\n      {/* Loading Spinner */}\r\n      <div className=\"flex flex-col items-center space-y-4\">\r\n        <div className=\"w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin\"></div>\r\n        <p className=\"text-gray-600 text-sm\">Redirecting to login...</p>\r\n      </div>\r\n    </div>\r\n  );\r\n}\r\n"],"names":[],"mappings":";;;;;AACA;AACA;;;AAFA;;;AAIe,SAAS;;IACtB,MAAM,SAAS,IAAA,4JAAS;IAExB,IAAA,oLAAS;0BAAC;YACR,OAAO,OAAO,CAAC,UAAU,qBAAqB;QAChD;yBAAG;QAAC;KAAO;IAEX,qBACE,uMAAC;QAAI,WAAU;kBAEb,cAAA,uMAAC;YAAI,WAAU;;8BACb,uMAAC;oBAAI,WAAU;;;;;;8BACf,uMAAC;oBAAE,WAAU;8BAAwB;;;;;;;;;;;;;;;;;AAI7C;GAhBwB;;QACP,4JAAS;;;KADF","debugId":null}}]
+}

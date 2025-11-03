@@ -4,5 +4,6 @@
   "/(protected)/settings/page": "app/(protected)/settings/page.js",
   "/(protected)/transactions/page": "app/(protected)/transactions/page.js",
   "/auth/page": "app/auth/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
   "/page": "app/page.js"
 }

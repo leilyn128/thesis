@@ -1,185 +1,338 @@
 "use client"
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent } from "../../../components/ui/card"
+import { useEffect, useState } from "react"
+import { supabase } from "../../../lib/supabaseClient"
 import {
   LineChart,
   Line,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
+  CartesianGrid,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from "recharts"
-
-// Sample Data (replace with backend/ML output)
-const historicalData = [
-  { year: "2021", income: 900000, expenses: 700000 },
-  { year: "2022", income: 1000000, expenses: 750000 },
-  { year: "2023", income: 1100000, expenses: 800000 },
-  { year: "2024", income: 1150000, expenses: 850000 },
-  { year: "2025", predicted: 1250000 },
-]
-
-const categoryBreakdown = [
-  { name: "Infrastructure", value: 400000 },
-  { name: "Health", value: 250000 },
-  { name: "Education", value: 300000 },
-  { name: "Salaries", value: 200000 },
-  { name: "Other", value: 100000 },
-]
-
-const COLORS = ["#4ade80", "#60a5fa", "#facc15", "#f87171", "#a78bfa"]
+import Papa from "papaparse"
+import * as XLSX from "xlsx"
 
 export default function DashboardPage() {
-  const router = useRouter()
+  const [session, setSession] = useState(null)
+  const [budgetData, setBudgetData] = useState([])
+  const [breakdownData, setBreakdownData] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [selectedYear, setSelectedYear] = useState(null)
 
-  // Protect route
+  // === Watch for Auth Session ===
   useEffect(() => {
-    const token = localStorage.getItem("token")
-    if (!token) {
-      router.push("/auth")
-    }
-  }, [router])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session) {
+        fetchBudgetData()
+        fetchBreakdownData()
+      }
+    })
 
-  const lastYearIncome = 1150000
-  const nextYearForecast = 1250000
-  const lastYearExpenses = 850000
-  const growthRate = (
-    ((nextYearForecast - lastYearIncome) / lastYearIncome) *
-    100
-  ).toFixed(2)
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      if (session) {
+        fetchBudgetData()
+        fetchBreakdownData()
+      }
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
+  // === Fetch Yearly Total Income ===
+  async function fetchBudgetData() {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from("yearly_budget")
+        .select("year,total_income")
+        .order("year", { ascending: true })
+
+      if (error) throw error
+
+      setBudgetData(
+        (data || []).map(d => ({
+          year: Number(d.year),
+          totalIncome: Number(d.total_income) || 0,
+        }))
+      )
+    } catch (err) {
+      console.error("❌ Error fetching yearly_budget:", err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+ // === Fetch Breakdown (Income vs Appropriations, grouped per year) ===
+async function fetchBreakdownData() {
+  try {
+    console.log("🔍 Fetching barangay_budget_breakdown…")
+
+    const { data, error } = await supabase
+      .from("barangay_budget_breakdown")
+      .select("year, category, subcategory, description, amount")
+      .order("year", { ascending: true })
+
+    if (error) throw error
+    if (!data?.length) {
+      console.warn("⚠️ No breakdown data found.")
+      return
+    }
+
+    console.log("✅ Data fetched:", data.length, "rows")
+
+    // 🔹 Group per year (make sure year is treated as number)
+    const grouped = {}
+
+    data.forEach(row => {
+      const year = Number(row.year)
+      if (isNaN(year)) return
+
+      if (!grouped[year]) {
+        grouped[year] = { income: {}, appropriations: {} }
+      }
+
+      const cleanAmount =
+        Number(String(row.amount).replace(/[,₱p\s]/gi, "")) || 0
+
+      // 🔹 Determine which group (Income or Appropriations)
+      const cat =
+        row.category?.toLowerCase().includes("income")
+          ? "income"
+          : "appropriations"
+
+      // 🔹 Label (subcategory > description)
+      const label =
+        row.subcategory?.trim() ||
+        row.description?.trim() ||
+        "Uncategorized"
+
+      grouped[year][cat][label] =
+        (grouped[year][cat][label] || 0) + cleanAmount
+    })
+
+    console.log("📊 Grouped Data Preview:", grouped)
+    setBreakdownData(grouped)
+  } catch (err) {
+    console.error("❌ Breakdown fetch error:", err.message)
+  }
+}
+
+
+
+  // === File Upload for yearly_budget ===
+  async function handleFileUpload(event) {
+    const file = event.target.files[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const fileName = file.name.toLowerCase()
+      let rows = []
+
+      if (fileName.endsWith(".csv")) {
+        const text = await file.text()
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
+        rows = parsed.data
+      } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+        const data = await file.arrayBuffer()
+        const workbook = XLSX.read(data, { type: "array" })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        rows = XLSX.utils.sheet_to_json(sheet)
+      } else {
+        alert("Please upload a CSV or Excel file (.xlsx/.xls).")
+        return
+      }
+
+      const headers = Object.keys(rows[0] || {}).map(h => h.trim().toLowerCase())
+      const yearHeader = headers.find(h => h.includes("year")) || "year"
+      const incomeHeader = headers.find(h => h.includes("income")) || "total_income"
+
+      for (const row of rows) {
+        const year = Number(String(row[yearHeader]).trim())
+        const incomeStr = String(row[incomeHeader])
+          .replace(/[₱pP\s]/g, "")
+          .replace(/,/g, "")
+          .replace(/[^\d.-]/g, "")
+          .trim()
+        const total_income = parseFloat(incomeStr) || 0
+
+        if (!year || isNaN(year) || total_income <= 0) continue
+
+        await supabase
+          .from("yearly_budget")
+          .upsert({ year, total_income }, { onConflict: ["year"] })
+      }
+
+      fetchBudgetData()
+      alert("✅ Data uploaded successfully.")
+    } catch (err) {
+      console.error("❌ Upload error:", err.message)
+      alert("Error uploading file.")
+    } finally {
+      setUploading(false)
+      event.target.value = null
+    }
+  }
+
+  // === UI ===
+  if (!session)
+    return (
+      <div className="p-10 text-center">
+        <h2 className="text-xl font-semibold text-gray-700">Please log in first</h2>
+      </div>
+    )
+
+  if (loading) return <p className="p-6">Loading budget data...</p>
+
+  const total = budgetData.reduce((sum, d) => sum + d.totalIncome, 0)
+  const avg = budgetData.length ? total / budgetData.length : 0
+  const max = Math.max(...budgetData.map(d => d.totalIncome), 0)
+  const min = Math.min(...budgetData.map(d => d.totalIncome), 0)
+  const currency = val =>
+    new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(val)
+
+  const selectedData = breakdownData[selectedYear] || {}
+  const COLORS = ["#4F46E5", "#10B981", "#F59E0B", "#EF4444", "#3B82F6", "#8B5CF6", "#14B8A6"]
+  const toPieData = obj => Object.entries(obj || {}).map(([name, value]) => ({ name, value }))
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800">Welcome, Treasurer</h2>
-        <p className="text-sm text-gray-500">
-          Barangay Danahao • Financial Forecasting Overview
-        </p>
+    <div className="p-6 space-y-8">
+      <h2 className="text-2xl font-semibold">Barangay Budget Dashboard</h2>
+      <p className="text-sm text-gray-500 mb-4">Visual overview of total income (2015–2022)</p>
+
+      <div className="mb-4">
+        <label className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-blue-700">
+          {uploading ? "Uploading..." : "Upload CSV or Excel (Year and Total Income)"}
+          <input type="file" accept=".csv, .xlsx, .xls" className="hidden" onChange={handleFileUpload} />
+        </label>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-sm text-gray-500">Forecasted Budget (2025)</h2>
-            <p className="text-2xl font-bold text-indigo-600">
-              ₱{nextYearForecast.toLocaleString()}
-            </p>
-            <p className="text-xs text-gray-400">Predicted by ML Model</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-sm text-gray-500">Income (2024)</h2>
-            <p className="text-2xl font-bold">
-              ₱{lastYearIncome.toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-sm text-gray-500">Expenses (2024)</h2>
-            <p className="text-2xl font-bold">
-              ₱{lastYearExpenses.toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-sm text-gray-500">Growth Rate</h2>
-            <p className="text-2xl font-bold text-green-600">{growthRate}%</p>
-          </CardContent>
-        </Card>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card label="Total Income" value={currency(total)} color="indigo" />
+        <Card label="Average Income" value={currency(avg)} color="green" />
+        <Card label="Highest Income" value={currency(max)} color="yellow" />
+        <Card label="Lowest Income" value={currency(min)} color="red" />
       </div>
 
-      {/* Historical vs Forecast Chart */}
-      <div className="bg-white rounded-xl shadow p-4 h-96">
-        <h2 className="text-lg font-semibold mb-4">
-          Historical vs Forecasted Budget
-        </h2>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={historicalData}>
-            <CartesianGrid strokeDasharray="3 3" />
+      {/* Chart */}
+      <div className="bg-white shadow rounded-lg p-4">
+        <h3 className="text-lg font-semibold mb-2">Yearly Income Trend</h3>
+        <ResponsiveContainer width="100%" height={350}>
+          <LineChart
+            data={budgetData}
+            onClick={e => e?.activeLabel && setSelectedYear(e.activeLabel)}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
             <XAxis dataKey="year" />
-            <YAxis />
-            <Tooltip />
-            <Line type="monotone" dataKey="income" stroke="#4ade80" name="Income" />
-            <Line type="monotone" dataKey="expenses" stroke="#f87171" name="Expenses" />
-            <Line
-              type="monotone"
-              dataKey="predicted"
-              stroke="#6366f1"
-              strokeDasharray="5 5"
-              name="Forecast"
-            />
+            <YAxis tickFormatter={val => `${(val / 1_000_000).toFixed(1)}M`} />
+            <Tooltip formatter={v => currency(v)} labelFormatter={y => `Year: ${y}`} />
+            <Line dataKey="totalIncome" stroke="#4F46E5" strokeWidth={3} dot={{ r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Forecasted Allocation */}
-      <div className="bg-white rounded-xl shadow p-4 h-96">
-        <h2 className="text-lg font-semibold mb-4">
-          Forecasted Budget Allocation (2025)
-        </h2>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={categoryBreakdown}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={120}
-              label
-            >
-              {categoryBreakdown.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={COLORS[index % COLORS.length]}
-                />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+      {/* Breakdown */}
+      <div className="bg-white shadow rounded-lg p-4">
+        <h3 className="text-lg font-semibold mb-2">
+          {selectedYear ? `Budget Breakdown (${selectedYear})` : "Select a Year for Details"}
+        </h3>
+        {!selectedYear && <p className="text-gray-500">Click a year to view breakdown.</p>}
 
-      {/* Forecast Table */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <h2 className="text-lg font-semibold mb-4">
-          Forecasted Financial Figures (2025)
-        </h2>
-        <table className="min-w-full border border-gray-200 text-sm">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="border px-4 py-2 text-left">Category</th>
-              <th className="border px-4 py-2 text-right">Amount (₱)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categoryBreakdown.map((row, i) => (
-              <tr key={i}>
-                <td className="border px-4 py-2">{row.name}</td>
-                <td className="border px-4 py-2 text-right">
-                  {row.value.toLocaleString()}
-                </td>
-              </tr>
-            ))}
-            <tr className="font-bold bg-gray-100">
-              <td className="border px-4 py-2">Total Forecast</td>
-              <td className="border px-4 py-2 text-right">
-                ₱{nextYearForecast.toLocaleString()}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        {selectedYear && (
+          <div className="flex flex-col lg:flex-row gap-8 justify-center mt-6">
+            <PieSection title="Income Breakdown" data={selectedData.income} colors={COLORS} currency={currency} />
+            <PieSection title="Appropriations Breakdown" data={selectedData.appropriations} colors={COLORS} currency={currency} />
+          </div>
+        )}
       </div>
     </div>
   )
 }
+
+// === Helper Components ===
+function Card({ label, value, color }) {
+  const colors = {
+    indigo: "bg-indigo-50 text-indigo-700",
+    green: "bg-green-50 text-green-700",
+    yellow: "bg-yellow-50 text-yellow-700",
+    red: "bg-red-50 text-red-700",
+  }
+  return (
+    <div className={`p-4 rounded-lg text-center ${colors[color]}`}>
+      <p className="text-sm text-gray-600">{label}</p>
+      <p className="text-lg font-semibold">{value}</p>
+    </div>
+  )
+}
+export function PieSection({ title, data, colors, currency }) {
+  const formatted = Object.entries(data || {}).map(([name, value]) => ({ name, value }))
+  const total = formatted.reduce((sum, d) => sum + d.value, 0)
+
+  const renderCustomLabel = (props) => {
+    const { cx, cy, midAngle, outerRadius, percent, index } = props
+    if (!formatted[index]) return null // 🧩 safety check
+
+    const RADIAN = Math.PI / 180
+    const radius = outerRadius * 1.35
+    const x = cx + radius * Math.cos(-midAngle * RADIAN)
+    const y = cy + radius * Math.sin(-midAngle * RADIAN)
+    const percentText = (percent * 100).toFixed(2)
+    const color = colors[index % colors.length]
+    const name = formatted[index]?.name || "Unknown"
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill={color}
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={12}
+        fontWeight="500"
+      >
+        {name}: {percentText}%
+      </text>
+    )
+  }
+
+  return (
+    <div className="w-full lg:w-1/2">
+      <p className="font-semibold text-gray-700 mb-2 text-center">{title}</p>
+      <ResponsiveContainer width="100%" height={360}>
+        <PieChart>
+          <Pie
+            data={formatted}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius={110}
+            labelLine={{ stroke: "#8884d8", strokeWidth: 1, cursor: "pointer" }}
+            label={renderCustomLabel}
+          >
+            {formatted.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={colors[index % colors.length]}
+                cursor="pointer"
+              />
+            ))}
+          </Pie>
+          <Tooltip formatter={v => currency(v)} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+

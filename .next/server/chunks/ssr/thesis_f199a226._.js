@@ -43,41 +43,63 @@ __turbopack_context__.s([
 var __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/thesis/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/thesis/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/thesis/node_modules/next/navigation.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$lib$2f$supabaseClient$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/thesis/lib/supabaseClient.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$components$2f$layouts$2f$authlayout$2e$jsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/thesis/components/layouts/authlayout.jsx [app-ssr] (ecmascript)");
 "use client";
 ;
 ;
 ;
 ;
+;
 function LoginPage() {
-    const [email, setEmail] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
+    const [email, setEmail] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("") // user must type this manually
+    ;
     const [password, setPassword] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const [error, setError] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const [loading, setLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [isSignup, setIsSignup] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRouter"])();
+    const DEFAULT_EMAIL = "treasurer@gmail.com" // ✅ fixed required email
+    ;
     const handleSubmit = async (e)=>{
         e.preventDefault();
         setLoading(true);
         setError("");
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/accounts/login/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    username: email,
-                    password
-                })
-            });
-            if (!response.ok) {
-                throw new Error("Invalid email or password");
+            // ✅ only allow if email matches default
+            if (email.trim().toLowerCase() !== DEFAULT_EMAIL.toLowerCase()) {
+                setError(`Only the email "${DEFAULT_EMAIL}" is allowed.`);
+                setLoading(false);
+                return;
             }
-            const data = await response.json();
-            // Save token so we can use it later
-            localStorage.setItem("token", data.token);
-            // Redirect to dashboard
-            router.push("/dashboard");
+            let data, error;
+            if (isSignup) {
+                // 🔥 Signup
+                const result = await __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$lib$2f$supabaseClient$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["supabase"].auth.signUp({
+                    email,
+                    password
+                });
+                data = result.data;
+                error = result.error;
+                if (error) throw error;
+                alert("Signup successful!");
+                setIsSignup(false);
+                setPassword("");
+                setEmail("");
+            } else {
+                // 🔑 Login
+                const result = await __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$lib$2f$supabaseClient$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["supabase"].auth.signInWithPassword({
+                    email,
+                    password
+                });
+                data = result.data;
+                error = result.error;
+                if (error) throw error;
+                if (data.session) {
+                    localStorage.setItem("token", data.session.access_token);
+                    router.push("/dashboard");
+                }
+            }
         } catch (err) {
             setError(err.message || "Something went wrong. Please try again.");
         } finally{
@@ -92,10 +114,10 @@ function LoginPage() {
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
                         className: "text-3xl font-bold mb-6 text-center text-green-600",
-                        children: "Welcome to FundCast!"
+                        children: isSignup ? "Create Treasurer Account" : "Welcome Treasurer!"
                     }, void 0, false, {
                         fileName: "[project]/thesis/app/auth/page.jsx",
-                        lineNumber: 50,
+                        lineNumber: 75,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
@@ -106,29 +128,28 @@ function LoginPage() {
                                 children: [
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                                         className: "block text-sm font-medium mb-2",
-                                        children: "Username"
+                                        children: "Email"
                                     }, void 0, false, {
                                         fileName: "[project]/thesis/app/auth/page.jsx",
-                                        lineNumber: 56,
+                                        lineNumber: 81,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                                        type: "text",
+                                        type: "email",
                                         value: email,
                                         onChange: (e)=>setEmail(e.target.value),
                                         required: true,
-                                        autoFocus: true,
                                         className: "w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-400",
-                                        placeholder: "Enter your username"
+                                        placeholder: "Enter your email"
                                     }, void 0, false, {
                                         fileName: "[project]/thesis/app/auth/page.jsx",
-                                        lineNumber: 57,
+                                        lineNumber: 82,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/thesis/app/auth/page.jsx",
-                                lineNumber: 55,
+                                lineNumber: 80,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -138,7 +159,7 @@ function LoginPage() {
                                         children: "Password"
                                     }, void 0, false, {
                                         fileName: "[project]/thesis/app/auth/page.jsx",
-                                        lineNumber: 68,
+                                        lineNumber: 93,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -147,16 +168,16 @@ function LoginPage() {
                                         onChange: (e)=>setPassword(e.target.value),
                                         required: true,
                                         className: "w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-400",
-                                        placeholder: "Enter your password"
+                                        placeholder: isSignup ? "Create a password" : "Enter your password"
                                     }, void 0, false, {
                                         fileName: "[project]/thesis/app/auth/page.jsx",
-                                        lineNumber: 69,
+                                        lineNumber: 94,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/thesis/app/auth/page.jsx",
-                                lineNumber: 67,
+                                lineNumber: 92,
                                 columnNumber: 13
                             }, this),
                             error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -164,39 +185,64 @@ function LoginPage() {
                                 children: error
                             }, void 0, false, {
                                 fileName: "[project]/thesis/app/auth/page.jsx",
-                                lineNumber: 80,
-                                columnNumber: 15
+                                lineNumber: 104,
+                                columnNumber: 23
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                                 type: "submit",
                                 disabled: loading,
                                 className: "w-full bg-green-500 text-white py-3 rounded-lg text-lg font-medium hover:bg-green-600 transition disabled:opacity-50",
-                                children: loading ? "Logging in..." : "Login"
+                                children: loading ? isSignup ? "Signing up..." : "Logging in..." : isSignup ? "Sign Up" : "Login"
                             }, void 0, false, {
                                 fileName: "[project]/thesis/app/auth/page.jsx",
-                                lineNumber: 83,
+                                lineNumber: 106,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/thesis/app/auth/page.jsx",
-                        lineNumber: 54,
+                        lineNumber: 79,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "text-sm text-center mt-4",
+                        children: [
+                            isSignup ? "Already have an account?" : "No account yet?",
+                            " ",
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$thesis$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                onClick: ()=>{
+                                    setIsSignup(!isSignup);
+                                    setError("");
+                                    setPassword("");
+                                    setEmail("");
+                                },
+                                className: "text-green-600 font-medium hover:underline",
+                                children: isSignup ? "Login here" : "Sign up"
+                            }, void 0, false, {
+                                fileName: "[project]/thesis/app/auth/page.jsx",
+                                lineNumber: 124,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/thesis/app/auth/page.jsx",
+                        lineNumber: 122,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/thesis/app/auth/page.jsx",
-                lineNumber: 49,
+                lineNumber: 74,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/thesis/app/auth/page.jsx",
-            lineNumber: 48,
+            lineNumber: 73,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/thesis/app/auth/page.jsx",
-        lineNumber: 47,
+        lineNumber: 72,
         columnNumber: 5
     }, this);
 }

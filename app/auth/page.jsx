@@ -2,14 +2,18 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "../../lib/supabaseClient"
 import LoginLayout from "../../components/layouts/authlayout"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState("") // user must type this manually
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [isSignup, setIsSignup] = useState(false)
   const router = useRouter()
+
+  const DEFAULT_EMAIL = "treasurer@gmail.com" // ✅ fixed required email
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -17,25 +21,46 @@ export default function LoginPage() {
     setError("")
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/accounts/login/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username: email, password }), // 👈 Django uses username
-      })
-
-      if (!response.ok) {
-        throw new Error("Invalid email or password")
+      // ✅ only allow if email matches default
+      if (email.trim().toLowerCase() !== DEFAULT_EMAIL.toLowerCase()) {
+        setError(`Only the email "${DEFAULT_EMAIL}" is allowed.`)
+        setLoading(false)
+        return
       }
 
-      const data = await response.json()
+      let data, error
 
-      // Save token so we can use it later
-      localStorage.setItem("token", data.token)
+      if (isSignup) {
+        // 🔥 Signup
+        const result = await supabase.auth.signUp({
+          email,
+          password,
+        })
+        data = result.data
+        error = result.error
 
-      // Redirect to dashboard
-      router.push("/dashboard")
+        if (error) throw error
+
+        alert("Signup successful!")
+        setIsSignup(false)
+        setPassword("")
+        setEmail("")
+      } else {
+        // 🔑 Login
+        const result = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+        data = result.data
+        error = result.error
+
+        if (error) throw error
+
+        if (data.session) {
+          localStorage.setItem("token", data.session.access_token)
+          router.push("/dashboard")
+        }
+      }
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.")
     } finally {
@@ -48,22 +73,22 @@ export default function LoginPage() {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-green-400 to-blue-500">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
           <h1 className="text-3xl font-bold mb-6 text-center text-green-600">
-            Welcome to FundCast!
+            {isSignup ? "Create Treasurer Account" : "Welcome Treasurer!"}
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium mb-2">Username</label>
+              <label className="block text-sm font-medium mb-2">Email</label>
               <input
-                type="text"
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoFocus
                 className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-                placeholder="Enter your username"
+                placeholder="Enter your email"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium mb-2">Password</label>
               <input
@@ -72,22 +97,42 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-                placeholder="Enter your password"
+                placeholder={isSignup ? "Create a password" : "Enter your password"}
               />
             </div>
 
-            {error && (
-              <p className="text-red-500 text-sm text-center">{error}</p>
-            )}
+            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
             <button
               type="submit"
               disabled={loading}
               className="w-full bg-green-500 text-white py-3 rounded-lg text-lg font-medium hover:bg-green-600 transition disabled:opacity-50"
             >
-              {loading ? "Logging in..." : "Login"}
+              {loading
+                ? isSignup
+                  ? "Signing up..."
+                  : "Logging in..."
+                : isSignup
+                ? "Sign Up"
+                : "Login"}
             </button>
           </form>
+
+          {/* Toggle Signup/Login */}
+          <p className="text-sm text-center mt-4">
+            {isSignup ? "Already have an account?" : "No account yet?"}{" "}
+            <button
+              onClick={() => {
+                setIsSignup(!isSignup)
+                setError("")
+                setPassword("")
+                setEmail("")
+              }}
+              className="text-green-600 font-medium hover:underline"
+            >
+              {isSignup ? "Login here" : "Sign up"}
+            </button>
+          </p>
         </div>
       </div>
     </LoginLayout>
